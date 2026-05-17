@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MantInd OS - Voice Assistant v2.5</title>
+    <style>
+        :root {
+            --bg-main: #060913;
+            --bg-panel: rgba(13, 21, 39, 0.85); /* Mayor transparencia para apreciar el fondo */
+            --neon-cyan: #00f0ff;
+            --neon-red: #ff0055;
+            --neon-green: #39ff14;
+            --text-neon: #e2e8f0;
+            --text-dim: #94a3b8;
+            --border-glow: rgba(0, 240, 255, 0.3);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+            background-image: linear-gradient(rgba(6, 9, 19, 0.88), rgba(6, 9, 19, 0.88)), url('http://googleusercontent.com/image_generation_content/0');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-neon);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Interfaz Superior - Estilo HUD / Telemetría */
+        header {
+            background: linear-gradient(180deg, rgba(9, 17, 36, 0.9) 0%, rgba(6, 9, 19, 0.9) 100%);
+            border-bottom: 2px solid var(--neon-cyan);
+            padding: 18px 15px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            position: relative;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .hud-title {
+            font-weight: 900;
+            font-size: 20px;
+            letter-spacing: 2px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+            text-transform: uppercase;
+        }
+
+        .hud-sub {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            color: var(--neon-cyan);
+            opacity: 0.7;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            padding: 20px 15px;
+            max-width: 480px;
+            margin: 0 auto;
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+            padding-bottom: 100px;
+        }
+
+        /* Estado del Sistema de Voz */
+        .voice-status {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            background: rgba(6, 9, 19, 0.8);
+            border: 1px dashed var(--neon-cyan);
+            border-radius: 6px;
+            color: var(--neon-cyan);
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.4);
+            backdrop-filter: blur(3px);
+        }
+
+        /* Contenedores de Vistas (Paneles Futuristas con Blur de Fondo) */
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .panel {
+            background-color: var(--bg-panel);
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.05), 0 4px 20px rgba(0,0,0,0.6);
+            margin-bottom: 20px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 4px solid var(--neon-cyan);
+            padding-left: 10px;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.3);
+        }
+
+        /* El Núcleo de Entrada por Voz (Botón de Micrófono) */
+        .core-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 25px 0;
+            height: 120px;
+        }
+
+        .btn-core {
+            background: radial-gradient(circle, rgba(16, 31, 61, 0.9) 0%, rgba(6, 10, 20, 0.95) 100%);
+            border: 3px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        /* Animación cuando la IA está escuchando en vivo */
+        .btn-core.listening {
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+            box-shadow: 0 0 25px var(--neon-red);
+            animation: core-pulse 1.2s infinite ease-in-out;
+        }
+
+        @keyframes core-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.8; box-shadow: 0 0 35px rgba(255, 0, 85, 0.6); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Consola de Salida de Texto (Terminal) */
+        .terminal-input {
+            width: 100%;
+            height: 130px;
+            background-color: rgba(5, 8, 17, 0.9);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            box-sizing: border-box;
+            color: #00ffaa;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 15px;
+            resize: none;
+            box-shadow: inset 0 0 10px rgba(0, 255, 170, 0.15);
+        }
+
+        .terminal-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.2), 0 0 8px rgba(0, 240, 255, 0.2);
+        }
+
+        /* Botones de Acción Neón */
+        .btn-action {
+            background: rgba(6, 9, 19, 0.6);
+            color: #ffffff;
+            border: 1px solid var(--neon-cyan);
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+            transition: all 0.2s;
+            backdrop-filter: blur(2px);
+        }
+
+        .btn-action:active {
+            background: rgba(0, 240, 255, 0.25);
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .btn-export {
+            border-color: var(--neon-green);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.1);
+        }
+        
+        .btn-export:active {
+            background: rgba(57, 255, 20, 0.25);
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+
+        /* Lista de Historial Estilo Registros Logs */
+        .log-list { list-style: none; padding: 0; margin: 0; }
+        .log-item {
+            background: rgba(8, 15, 29, 0.85);
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--neon-cyan);
+            border-top: 1px solid rgba(255,255,255,0.02);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .log-meta {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            color: var(--neon-cyan);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .log-text {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+
+        /* Guías de Comando */
+        .guide-box {
+            background: rgba(5, 9, 18, 0.85);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
+        .guide-box strong { color: var(--neon-cyan); }
+
+        /* Navegación Inferior Flotante */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 480px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(9, 17, 36, 0.9);
+            border-top: 1px solid rgba(0, 240, 255, 0.35);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0 22px 0;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.9);
+            z-index: 999;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .nav-item {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 8px 16px;
+            transition: all 0.3s;
+        }
+
+        .nav-item.active {
+            color: var(--neon-cyan);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="hud-title">MantInd OS</div>
+        <div class="hud-sub">Módulo de Telemetría e Interfaz Integrada v2.5</div>
+    </header>
+
+    <div class="container">
+        <div id="status" class="voice-status">SISTEMA ONLINE // ESPERANDO COMANDO</div>
+
+        <div id="view-inicio" class="view active">
+            <div class="panel">
+                <h2>Panel de Control</h2>
+                <p style="font-size: 14px; color: #e2e8f0; line-height: 1.5;">
+                    El procesador de comandos de voz se encuentra activo en segundo plano superpuesto al entorno virtual de planta. Puede operar la navegación de la suite mediante órdenes directas.
+                </p>
+                <div class="guide-box">
+                    <strong>Navegación por Voz Habilitada:</strong><br>
+                    • "Ir a inicio" &rarr; Muestra este panel.<br>
+                    • "Ir a registro" &rarr; Abre consola de dictado.<br>
+                    • "Ir a historial" &rarr; Abre logs agendados.
+                </div>
+            </div>
+        </div>
+
+        <div id="view-registro" class="view">
+            <div class="panel">
+                <h2>Entrada de Datos Activa</h2>
+                
+                <div class="core-container">
+                    <button id="btn-mic" class="btn-core">🎤</button>
+                </div>
+                
+                <textarea id="transcript-output" class="terminal-input" placeholder="Esperando flujo de datos por micrófono..."></textarea>
+                <button id="btn-save" class="btn-action">Agendar Registro en Texto</button>
+            </div>
+        </div>
+
+        <div id="view-historial" class="view">
+            <div class="panel">
+                <h2>Historial de Logs Locales</h2>
+                <button id="btn-export" class="btn-action btn-export">Exportar Reporte Diario (.TXT)</button>
+                <ul id="list-records" class="log-list" style="margin-top: 20px;">
+                    </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <button onclick="switchView('inicio')" id="nav-inicio" class="nav-item active">Inicio</button>
+        <button onclick="switchView('registro')" id="nav-registro" class="nav-item">Registro</button>
+        <button onclick="switchView('historial')" id="nav-historial" class="nav-item">Historial</button>
+    </div>
+
+    <script>
+        let recognition;
+        let isListening = false;
+        let records = JSON.parse(localStorage.getItem('mantind_records')) || [];
+
+        const btnMic = document.getElementById('btn-mic');
+        const txtOutput = document.getElementById('transcript-output');
+        const btnSave = document.getElementById('btn-save');
+        const btnExport = document.getElementById('btn-export');
+        const statusDiv = document.getElementById('status');
+        const listRecords = document.getElementById('list-records');
+
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                statusDiv.innerText = "ERROR: INTERFAZ DE VOZ NO COMPATIBLE";
+                statusDiv.style.color = "var(--neon-red)";
+                statusDiv.style.borderColor = "var(--neon-red)";
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'es-AR';
+
+            recognition.onstart = () => {
+                isListening = true;
+                btnMic.classList.add('listening');
+                statusDiv.innerText = "🎙️ ESCUCHANDO... RECONOCIMIENTO EN TIEMPO REAL ACTIVO";
+                statusDiv.style.color = "var(--neon-red)";
+                statusDiv.style.borderColor = "var(--neon-red)";
+                statusDiv.style.textShadow = "0 0 5px rgba(255,0,85,0.4)";
+            };
+
+            recognition.onerror = (event) => {
+                console.error(event.error);
+                statusDiv.innerText = `ERROR DE ENTRADA: ${event.error.toUpperCase()}`;
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                btnMic.classList.remove('listening');
+                statusDiv.innerText = "SISTEMA ONLINE // ESPERANDO COMANDO";
+                statusDiv.style.color = "var(--neon-cyan)";
+                statusDiv.style.borderColor = "var(--neon-cyan)";
+                statusDiv.style.textShadow = "0 0 5px rgba(0,240,255,0.4)";
+            };
+
+            recognition.onresult = (event) => {
+                const resultIndex = event.resultIndex;
+                const transcript = event.results[resultIndex][0].transcript.trim().toLowerCase();
+
+                if (transcript.includes("ir a inicio")) {
+                    switchView('inicio');
+                    return;
+                } else if (transcript.includes("ir a registro")) {
+                    switchView('registro');
+                    return;
+                } else if (transcript.includes("ir a historial")) {
+                    switchView('historial');
+                    return;
+                }
+
+                const currentView = document.querySelector('.view.active').id;
+                if (currentView === 'view-registro') {
+                    if (txtOutput.value) {
+                        txtOutput.value += " " + event.results[resultIndex][0].transcript;
+                    } else {
+                        txtOutput.value = event.results[resultIndex][0].transcript;
+                    }
+                }
+            };
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.getElementById(`nav-${viewName}`).classList.add('active');
+            
+            if(viewName === 'historial') {
+                renderRecords();
+            }
+        }
+
+        btnMic.addEventListener('click', () => {
+            if (!recognition) initSpeech();
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        });
+
+        btnSave.addEventListener('click', () => {
+            const text = txtOutput.value.trim();
+            if (!text) return;
+
+            const now = new Date();
+            const record = {
+                id: Date.now(),
+                dateStr: now.toLocaleDateString('es-AR'),
+                timeStr: now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+                content: text
+            };
+
+            records.unshift(record);
+            localStorage.setItem('mantind_records', JSON.stringify(records));
+            
+            txtOutput.value = "";
+            switchView('historial');
+        });
+
+        function renderRecords() {
+            listRecords.innerHTML = "";
+            if (records.length === 0) {
+                listRecords.innerHTML = "<li style='text-align:center; color:var(--text-dim); font-size:13px; font-family:monospace; padding-top:15px;'>[NO HAY REGISTROS EN BASE DE DATOS]</li>";
+                return;
+            }
+
+            records.forEach(r => {
+                const li = document.createElement('li');
+                li.className = 'log-item';
+                li.innerHTML = `
+                    <div class="log-meta">
+                        <span>INDEX:: ${r.id}</span>
+                        <span>LOG_TIME:: ${r.dateStr} - ${r.timeStr} HS</span>
+                    </div>
+                    <div class="log-text">${r.content}</div>
+                `;
+                listRecords.appendChild(li);
+            });
+        }
+
+        btnExport.addEventListener('click', () => {
+            const todayStr = new Date().toLocaleDateString('es-AR');
+            const todaysRecords = records.filter(r => r.dateStr === todayStr);
+
+            if (todaysRecords.length === 0) {
+                alert("Sin registros cargados en la fecha actual.");
+                return;
+            }
+
+            let fileContent = `===================================================\n`;
+            fileContent += `    MANTIND OS - REPORTE DIARIO DE LOGS DE VOZ      \n`;
+            fileContent += `    FECHA: ${todayStr}                              \n`;
+            fileContent += `===================================================\n\n`;
+
+            todaysRecords.reverse().forEach((r, idx) => {
+                fileContent += `[REGISTRO #${idx + 1}] -------------------------------------\n`;
+                fileContent += `HORA: ${r.timeStr} HS\n`;
+                fileContent += `DATA: ${r.content}\n\n`;
+            });
+
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `LOG_VOZ_${todayStr.replace(/\//g, '_')}.txt`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+
+        window.onload = () => {
+            initSpeech();
+        };
+
+        // ... (Todo el código de voz y lógica que ya tenías) ...
+
+        // CÓDIGO DE ENLACE PARA EL SERVICE WORKER (sw.js)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('MantInd OS: Service Worker registrado con éxito en el alcance: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('MantInd OS: Falló el registro del Service Worker: ', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

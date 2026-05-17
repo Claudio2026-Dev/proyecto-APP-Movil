@@ -1,0 +1,16 @@
+{
+  "name": "MantInd OS",
+  "short_name": "MantInd",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#060913",
+  "theme_color": "#00f0ff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2343/2343354.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
